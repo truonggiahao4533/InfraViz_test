@@ -53,3 +53,35 @@ resource "azurerm_private_endpoint" "storage_blob" {
   }
   tags = local.tags
 }
+
+resource "azurerm_private_dns_zone" "kv_vault" {
+  name                = "privatelink.vaultcore.azure.net"
+  resource_group_name = azurerm_resource_group.main.name
+  tags                = local.tags
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "kv_vault" {
+  name                 = "link-shop-dev-kv-vault"
+  private_dns_zone_id  = azurerm_private_dns_zone.kv_vault.id
+  virtual_network_id   = azurerm_virtual_network.main.id
+  registration_enabled = false
+  tags                 = local.tags
+}
+
+resource "azurerm_private_endpoint" "kv_vault" {
+  name                = "pe-shop-dev-kv-vault"
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  subnet_id           = azurerm_subnet.subnet_2.id
+  private_service_connection {
+    name                           = "vault"
+    private_connection_resource_id = azurerm_key_vault.kv.id
+    subresource_names              = ["vault"]
+    is_manual_connection           = false
+  }
+  private_dns_zone_group {
+    name                 = "default"
+    private_dns_zone_ids = [azurerm_private_dns_zone.kv_vault.id]
+  }
+  tags = local.tags
+}
